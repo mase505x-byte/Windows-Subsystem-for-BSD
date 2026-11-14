@@ -1,0 +1,10 @@
+# Binaric package descriptor. This is metadata; build-package.sh performs the build.
+format=binaric-package-v1
+name=wsb
+version=0.2.0
+summary=WSB CLI and Rust interop/assembler libraries
+license=MIT
+build_tests=cargo test --workspace
+build_rust=cargo build --workspace --release
+build_cli=cmake -S . -B build/package -DCMAKE_BUILD_TYPE=Release && cmake --build build/package --config Release
+payload=bin/wsb,lib/wsb-asm,share/wsb/README.md
