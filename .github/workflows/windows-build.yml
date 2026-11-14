@@ -1,0 +1,23 @@
+name: Windows build
+
+on:
+   push:
+   pull_request:
+   workflow_dispatch:
+
+jobs: 
+    build:
+        runs-on: windows-latest
+        
+        steps:
+          - name: Get the source code
+            uses: actions/checkout@v4
+          
+          - name: Configure
+            run: cmake -S . -B build 
+           
+          - name: Build WSB CLI
+            run: cmake --build build --config Release
+            
+          - name: Check the CLI
+            run: .\build\Release\wsb.exe version
