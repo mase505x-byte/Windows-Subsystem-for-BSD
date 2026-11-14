@@ -1,0 +1,17 @@
+version=0.2.0
+arch=x86_64
+platform=linux
+summary=BSD/Windows interop bridge and CLI
+build-system=cargo,cmake
+
+[build]
+step1=cargo build --workspace --release
+step2=cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+step3=cmake --build build --config Release
+
+[package]
+bin=build/wsb
+lib=target/release/libwsb_asm.so
+lib_alt=target/release/libwsb_asm.a
+docs=README.md
+license=LICENSE
