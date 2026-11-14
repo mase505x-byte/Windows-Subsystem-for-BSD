@@ -1,0 +1,9 @@
+[package]
+name = "wsb-asm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "wsb_asm"
+crate-type = ["rlib", "cdylib", "staticlib"]

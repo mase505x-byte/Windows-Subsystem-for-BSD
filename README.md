@@ -1,149 +1,46 @@
-# Windows-Subsystem-for-BSD
-**Windows Subsystem for BSD (WSB)** is a lightweight compatibility and interop environment that allows BSD userland binaries, shells, and tools to run alongside a Windows host server. It combines a custom Rust interop bridge, a runtime **Binaric Assembler** with Dual-ABI translation, and a C/C++ management CLI (`wsb`).
----
+# Windows Subsystem for BSD (WSB)
 
-## Architecture Overview
+WSB is an early-stage project for exploring a BSD/Windows interop boundary. This repository now contains buildable foundations for shared protocol types, a bounded local IPC client, an x86-64 byte emitter, and a small management CLI. **It does not yet include a BSD kernel, ELF loader, guest filesystem, Windows host server, or a functioning BSD shell.** Commands that would imply those features report that they are unavailable rather than pretending to start them.
 
-WSB operates across three core components:
+## Components
 
-1. **WSB CLI & Host Server (`wsb`, `cr-server`):**
-   - Manages the BSD user-space lifecycle, configuration, and host interop daemon.
-   - Provides commands to start/stop the server, launch a BSD shell, check subsystem status, inspect settings, and uninstall the environment.
-2. **Rust Server Bridge (`wsb_interop`):**
-   - Connects BSD guest processes to the Windows host server binary over a Unix domain socket (`/var/run/wsb_server.sock`) using length-prefixed `bincode` framing.
-   - Exposes C-ABI FFI hooks (`cdylib` / `staticlib`) so native BSD C/C++ programs can trigger host actions such as executing Windows binaries or mounting host drives.
-3. **Binaric Assembler & JIT Engine (`wsb_asm`):**
-   - Emits and patches x86_64 machine instructions at runtime with strict **W^X (Write XOR Execute)** memory protection via `mmap` and `mprotect`.
-   - Generates **System V AMD64 to Microsoft x64 ABI trampolines** (remapping argument registers and allocating 32-byte Windows shadow space) to bridge BSD and Windows calling conventions seamlessly.
+- `wsb-core` — shared protocol enums, protocol version, size limits, and bind-setting validation.
+- `wsb-interop` — Unix-domain-socket client using a 4-byte little-endian length prefix and bincode payloads. `WSB_SOCKET` can override `/var/run/wsb_server.sock`. Each request makes a fresh connection; frames are limited to 1 MiB and I/O has a five-second timeout.
+- `wsb-asm` — bounds-checked byte buffer/patch operations and a SysV-to-Microsoft-x64 stub emitter for the first four integer/pointer arguments. It emits bytes only; it does not allocate executable memory or run generated code. Stack arguments and floating-point arguments are not supported.
+- `wsb` — standalone C++17 CLI for help/version, socket status, basic diagnostics, and settings input validation.
 
----
+## Build and test
 
-## Project Structure
+Rust workspace (stable Rust):
 
-```text
-wsb/
-├── cli/                    # C/C++ WSB CLI entrypoint (main.c) and shell integration (shell.cpp)
-├── crates/
-│   ├── wsb_interop/        # Rust IPC client library & C-ABI FFI bridge
-│   └── wsb_binaric_asm/    # Runtime x86_64 Binaric Assembler & Dual-ABI JIT engine
-├── targets/
-│   └── x86_64-wsb-freebsd.json  # Custom Rust target specification for WSB
-└── README.md
+```sh
+cargo test --workspace
+cargo build --workspace --release
 ```
 
----
+C++ CLI (CMake 3.16+, C++17 compiler):
 
-## Prerequisites
-
-- **Host OS:** Windows 10/11 (x64)
-- **Toolchain:**
-  - Rust (`nightly` toolchain with `rust-src` component for custom target builds)
-  - Clang / GCC / MSVC with C++17 support
-  - `lld` linker (`rust-lld`)
-
----
-
-## Building from Source
-
-### 1. Build the Rust Interop & Binaric Assembler Libraries
-
-Install the nightly toolchain and `rust-src` if compiling against the custom WSB target specification:
-
-```bash
-rustup toolchain install nightly
-rustup component add rust-src --toolchain nightly
+```sh
+cmake -S . -B build
+cmake --build build
+./build/wsb help
 ```
 
-Build the interop library (`libwsb.so` / `libwsb.a`):
+## CLI examples
 
-```bash
-cd crates/wsb_interop
-cargo +nightly build -Z build-std=core,std,alloc,panic_abort \
-  --target ../../targets/x86_64-wsb-freebsd.json \
-  --release
-```
-
-Build the Binaric Assembler (`libwsb_asm.so` / `libwsb_asm.a`):
-
-```bash
-cd ../wsb_binaric_asm
-cargo build --release
-```
-
-### 2. Build the WSB CLI & Shell
-
-Compile the C/C++ CLI and link against the generated Rust libraries:
-
-```bash
-cd ../../cli
-cc -O2 main.c -o wsb -L../crates/wsb_interop/target/release -lwsb
-```
-
----
-
-## CLI Usage
-
-The `wsb` command manages the BSD user-space environment and background server:
-
-```text
-Usage: wsb <command> [options]
-
-Commands:
-  server-start    Start the WSB host interop server (cr-server)
-  shell           Launch an interactive BSD user-space shell
-  status          Check the running state of the WSB server and environment
-  settings        View or update WSB subsystem configuration
-  collect         Collect diagnostic logs and environment state
-  version         Display the current WSB version
-  uninstall       Remove the WSB subsystem and clean up runtime files
-```
-
-### Example Workflow
-
-```bash
-# Start the background interop server
-wsb server-start
-
-# Verify subsystem status
+```sh
+wsb version
 wsb status
-
-# Enter the BSD shell environment
-wsb shell
+wsb settings 127.0.0.1 9000
+wsb collect
 ```
 
----
+`settings` validates user input only; it does not persist configuration or bind a server. `status` checks for the configured socket path, but socket presence alone does not prove that a server is healthy. `shell`, `server-start`, and `uninstall` are intentionally unavailable until a runtime/server and safe installation lifecycle exist.
 
-## FFI & Interop Integration
+## IPC protocol
 
-### C-ABI Server Bridge (`wsb_interop`)
-Native BSD binaries can link against `libwsb` to communicate with the Windows host server:
+The client sends a four-byte little-endian payload length followed by a bincode-serialized `wsb_core::ServerRequest`, then reads the same framing around a `ServerResponse`. The current request variants are `Ping`, `ExecuteWindowsBinary`, and `MountDrive`. Server implementation and authentication/authorization policy are not included yet; do not expose this protocol to untrusted clients or treat it as a production security boundary.
 
-```c
-#include <stdint.h>
+## C ABI
 
-extern int32_t wsb_ping_server(void);
-
-int main(void) {
-    if (wsb_ping_server() == 0) {
-        // WSB host server is reachable
-    }
-    return 0;
-}
-```
-
-### Binaric Assembler (`wsb_asm`)
-Dynamic Dual-ABI trampolines can be assembled and sealed into executable pages from C++:
-
-```cpp
-#include <cstdint>
-
-extern "C" {
-    void* wsb_asm_create(void);
-    void wsb_asm_emit_trampoline(void* asm_ptr, uint64_t win64_fn_addr);
-    void* wsb_asm_finalize(void* asm_ptr);
-    const uint8_t* wsb_region_entry(const void* region);
-    void wsb_region_free(void* region);
-}
-```
-
----
+`wsb-interop` exports `wsb_ping_server() -> i32` and `wsb_protocol_version() -> u16`. `wsb-asm` exports `wsb_asm_create`, `wsb_asm_free`, `wsb_asm_emit_trampoline`, and `wsb_asm_copy_bytes`; callers are responsible for honoring pointer and buffer safety contracts in the Rust API docs. Generated bytes are not executable memory.

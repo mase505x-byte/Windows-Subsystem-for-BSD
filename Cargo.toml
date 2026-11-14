@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/wsb-core",
+    "crates/wsb-interop",
+    "crates/wsb-asm",
+]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+version = "0.2.0"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+bincode = "1.3"

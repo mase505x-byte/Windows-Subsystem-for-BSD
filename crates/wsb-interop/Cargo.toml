@@ -1,0 +1,14 @@
+[package]
+name = "wsb-interop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "wsb_interop"
+crate-type = ["rlib", "cdylib", "staticlib"]
+
+[dependencies]
+wsb-core = { path = "../wsb-core" }
+bincode.workspace = true
+serde.workspace = true
