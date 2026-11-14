@@ -1,0 +1,64 @@
+.TH WSB 1 "November 2026" "WSB 1.1.3" "User Commands"
+.SH NAME
+wsb \- manage a BSD user-space environment
+.SH SYNOPSIS
+.B wsb
+.I command
+.RI [ arguments ...]
+.SH DESCRIPTION
+.B wsb
+manages and provides access to a configured BSD environment from the host system.
+Use a command to start or inspect the environment, open a shell, or manage a
+dedicated server.
+.SH COMMANDS
+.TP
+.B help
+List available WSB commands.
+.TP
+.B start
+Start the configured BSD environment.
+.TP
+.B shell
+Open an interactive shell in the running BSD environment.
+.TP
+.B status
+Report whether the BSD environment is running.
+.TP
+.B uninstall
+Uninstall the configured BSD environment.
+.TP
+.B server-start
+Start the configured dedicated server.
+.TP
+.B version
+Display the WSB version.
+.SH BSD COMMANDS
+The BSD environment may provide commands such as
+.BR freebsd-version (1),
+.BR pkg (8),
+.BR service (8),
+.BR sysrc (8),
+.BR bsdinstall (8),
+.BR dmesg (8),
+.BR jls (8),
+and
+.BR jexec (8).
+Availability depends on the configured environment.
+.SH EXAMPLES
+.TP
+.B wsb help
+List available WSB commands.
+.TP
+.B wsb start
+Start the configured BSD environment.
+.TP
+.B wsb shell
+Open a shell in the running environment.
+.TP
+.B wsb status
+Check whether the environment is running.
+.TP
+.B wsb version
+Display the WSB version.
+.SH VERSION
+WSB 1.1.3

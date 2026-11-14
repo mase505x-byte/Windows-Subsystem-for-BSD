@@ -1,0 +1,11 @@
+[package]
+name = "wsb_binaric_assembler"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "wsb_asm"
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+libc = "0.2"
